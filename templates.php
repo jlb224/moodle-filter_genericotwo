@@ -29,7 +29,7 @@ global $DB, $OUTPUT, $PAGE;
 
 $PAGE->set_url(new \moodle_url('/filter/genericotwo/templates.php'));
 $PAGE->set_context($context);
-$PAGE->set_pagelayout('standard');
+$PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('templates', 'filter_genericotwo'));
 $PAGE->set_heading(get_string('templates', 'filter_genericotwo'));
 
@@ -128,16 +128,26 @@ if ($data = $form->get_data()) {
     }
 }
 
+$fullwidth = (bool) get_user_preferences('filter_genericotwo_templates_fullwidth', 0);
+if (!$fullwidth) {
+    $PAGE->add_body_class('limitedwidth');
+}
+$PAGE->add_body_class('filter-genericotwo-pagewidth');
+$isform = ($action === 'add' || $action === 'edit');
+if ($isform) {
+    $PAGE->requires->js_call_amd('filter_genericotwo/pagewidth_toggle', 'init');
+}
+
 echo $OUTPUT->header();
 
 echo html_writer::tag('p', get_string('templatesinstructions', 'filter_genericotwo'));
-if ($action !== 'add' && $action !== 'edit') {
+if (!$isform) {
     echo html_writer::link(new moodle_url('/filter/genericotwo/templates.php', ['action' => 'add']), get_string('addtemplate', 'filter_genericotwo'), ['class' => 'btn btn-primary']);
     echo html_writer::empty_tag('br');
     echo html_writer::empty_tag('br');
 }
 
-if ($action === 'add' || $action === 'edit') {
+if ($isform) {
     if ($action === 'edit' && empty($data)) {
         if ($tmpl = $DB->get_record('filter_genericotwo_templates', ['id' => $id], '*', IGNORE_MISSING)) {
             $tmpl->instructions = [
@@ -149,6 +159,7 @@ if ($action === 'add' || $action === 'edit') {
             redirect(new moodle_url('/filter/genericotwo/templates.php'));
         }
     }
+    echo $OUTPUT->render_from_template('filter_genericotwo/pagewidth_toggle', ['fullwidth' => $fullwidth]);
     $form->display();
 
     $enableaihelper = get_config('filter_genericotwo', 'enableaihelper') ? true : false;

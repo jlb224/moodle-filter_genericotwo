@@ -92,3 +92,19 @@ function filter_genericotwo_output_fragment_preview($args) {
     // Moodle Fragment API returns the HTML.
     return $importcsshtml . $customcsshtml . $html;
 }
+
+/**
+ * Return the list of user preferences this plugin allows to be set via the ajax
+ * user preference API (core_user/repository setUserPreference).
+ *
+ * @return array[] Preference name => definition (type, null handling, default, choices).
+ */function filter_genericotwo_user_preferences(): array {
+    return [
+        'filter_genericotwo_templates_fullwidth' => [
+            'type' => PARAM_BOOL,
+            'null' => NULL_NOT_ALLOWED,
+            'default' => 0,
+            'permissioncallback' => [core_user::class, 'is_current_user'],
+        ],
+    ];
+}

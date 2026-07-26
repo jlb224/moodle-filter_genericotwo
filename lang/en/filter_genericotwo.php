@@ -38,6 +38,7 @@ $string['enableaihelper'] = 'Enable AI helper';
 $string['enableaihelper_desc'] = 'Enable the AI wizard button for template editing.';
 $string['filtername'] = 'Generico Two filter';
 $string['finished'] = 'Finished';
+$string['fullwidth'] = 'Full width';
 $string['genericotwo:managetemplates'] = 'Manage templates';
 $string['handlelegacytags'] = 'Handle legacy tags';
 $string['handlelegacytags_desc'] = 'If enabled, this filter will also process {GENERICO:type="xx"} tags using Generico Two templates.';
@@ -60,6 +61,7 @@ $string['presets_help'] = 'Choose a preset to populate this template with precon
 $string['preview'] = 'Preview';
 $string['preview_desc'] = 'Preview the template output using the Test 1 or Test 2 strings.';
 $string['privacy:metadata'] = 'The Generico Two filter does not store any personal data.';
+$string['privacy:preference:templates_fullwidth'] = 'Whether the templates page is shown at full or limited width.';
 $string['ready'] = 'Ready';
 $string['remainingplays'] = 'Remaining plays';
 $string['required'] = 'This field is required.';
@@ -114,4 +116,3 @@ $string['updateconfirm'] = 'Are you sure you want to update this template from i
 $string['updatetoversion'] = 'Update to {$a}';
 $string['volumedown'] = 'Volume down';
 $string['volumeup'] = 'Volume up';
-

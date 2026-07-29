@@ -52,11 +52,11 @@ class utils {
 
         // Remove the opening tag (G2 or GENERICO)
         $rawproperties = preg_replace('/^\{(?:G2|GENERICO):/i', '', $filterstring);
-        
+
         // Remove the closing brace and any trailing content (though matched string usually ends with })
         // We split by closing brace to get the inner content
         $rawproperties = explode("}", $rawproperties);
-        
+
         // Here we remove any html tags we find. They should not be in here
         // and we return the guts of the filter string for parsing.
         $rawproperties = strip_tags($rawproperties[0]);
@@ -123,21 +123,21 @@ class utils {
 
 
     /**
-     * Determins if a specific context is allowed to use a given template
+     * Determins if a specific context is allowed to use a given template.
      *
      * @param context|null $context
-     * @param int $templateidx Template index
+     * @param \stdClass $template template record from filter_genericotwo_templates
      * @return bool true if allowed, else false.
      */
-    public static function is_context_allowed(?\context $context, int $templatekey): bool {
+    public static function is_context_allowed(?\context $context, \stdClass $template): bool {
         // Allowed context levels, e.g. "system", "course", "mod_xxxx".
-        $allowedcontexts = self::explode_csv_list((string) get_config(constants::M_COMPONENT, 'allowedcontexts_' . $templatekey));
+        $allowedcontexts = self::explode_csv_list((string) $template->allowedcontexts);
         if (!empty($allowedcontexts) && !in_array(self::get_context_name($context), $allowedcontexts)) {
             return false;
         }
 
         // Allowed specific context ids.
-        $allowedcontextids = self::explode_csv_list((string) get_config(constants::M_COMPONENT, 'allowedcontextids_' . $templatekey));
+        $allowedcontextids = self::explode_csv_list((string) $template->allowedcontextids);
         if (!empty($allowedcontextids) && !in_array($context->id, $allowedcontextids)) {
             return false;
         }

@@ -100,6 +100,11 @@ class text_filter extends \core_filters\text_filter {
         $filterprops['uniqid'] = uniqid('fg_');
         $filterprops['AUTOID'] = $filterprops['uniqid'];
 
+        // Add the simple system variables. These are reserved in utils::fetch_filter_properties(),
+        // so a tag can never overwrite them.
+        $filterprops['WWWROOT'] = $CFG->wwwroot;
+        $filterprops['MOODLEPAGEID'] = optional_param('id', 0, PARAM_INT);
+
         // We use this to see if its a web service calling this.
         // in which case we return the alternate content.
         $climode = defined('CLI_SCRIPT') && CLI_SCRIPT;
@@ -338,6 +343,8 @@ class text_filter extends \core_filters\text_filter {
         }
         $filterprops['uniqid'] = uniqid('fg_preview_');
         $filterprops['AUTOID'] = $filterprops['uniqid'];
+        $filterprops['WWWROOT'] = $CFG->wwwroot;
+        $filterprops['MOODLEPAGEID'] = optional_param('id', 0, PARAM_INT);
 
         if (isset($filterprops['type']) && !empty($filterprops['type'])) {
             $type = $filterprops['type'];

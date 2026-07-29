@@ -5,7 +5,8 @@ define([
 	"core/modal",
 	"core/templates",
 	"core/str",
-], function ($, CM, Ajax, Modal, Templates, Str) {
+	"filter_genericotwo/variables",
+], function ($, CM, Ajax, Modal, Templates, Str, Variables) {
 	return {
 		init: function (config) {
 			var EditorState = CM.EditorState;
@@ -13,15 +14,49 @@ define([
 			var basicSetup = CM.basicSetup;
 			var lang = CM.lang;
 
+			// "vars" adds the insert-variable picker. The dataset editor holds SQL (whose
+			// parameters are ? placeholders, not variables) and the CSS editor is not rendered
+			// through Mustache at all, so neither of those gets one.
+			// "triplestache" inserts {{{name}}}, because Mustache HTML-escapes {{name}} and that
+			// would corrupt values used inside JavaScript string literals.
 			var textareas = [
-				{ id: "id_content", mode: lang.html },
-				{ id: "id_templateend", mode: lang.html },
-				{ id: "id_jscontent", mode: lang.javascript },
+				{ id: "id_content", mode: lang.html, vars: true },
+				{ id: "id_templateend", mode: lang.html, vars: true },
+				{ id: "id_jscontent", mode: lang.javascript, vars: true, triplestache: true },
 				{ id: "id_dataset", mode: lang.html },
 				{ id: "id_customcss", mode: lang.html },
 			];
 
+			// The variable catalogue comes from a hidden field rather than an init argument,
+			// because it is well over the 1024 character limit js_call_amd warns about.
+			var vargroups = [];
+			var vardata = document.getElementById("id_filter_genericotwo_variabledata");
+			if (vardata && vardata.value) {
+				try {
+					vargroups = JSON.parse(vardata.value);
+				} catch (e) {
+					window.console.error("Could not parse variable catalogue", e);
+				}
+			}
+
 			var views = {};
+
+			/**
+			 * Get (or create) the in-flow toolbar above an editor, so buttons can never overlap
+			 * whatever field happens to precede this one.
+			 *
+			 * @param {Object} container jQuery wrapped editor container.
+			 * @returns {Object} jQuery wrapped toolbar.
+			 */
+			function fetchToolbar(container) {
+				var toolbar = container.prev(".genericotwo-codemirror-toolbar");
+				if (!toolbar.length) {
+					toolbar = $("<div>", {
+						class: "genericotwo-codemirror-toolbar",
+					}).insertBefore(container);
+				}
+				return toolbar;
+			}
 
 			textareas.forEach(function (item) {
 				var textarea = $("#" + item.id);
@@ -94,18 +129,33 @@ define([
 						}
 					});
 
+					if (item.vars && vargroups.length) {
+						Variables.attach(
+							fetchToolbar(container)[0],
+							vargroups,
+							{ view: views[item.id] },
+							!!item.triplestache,
+						);
+					}
+
 					if (config && config.enableaihelper && item.id === "id_content") {
 						addAIHelperButton(container, views);
 					}
 				}
 			});
 
-			function addAIHelperButton(container, allViews) {
-				// In-flow toolbar above the editor, so the button can never
-				// overlap whatever field happens to precede this one.
-				var toolbar = $("<div>", {
+			// The dataset variables field is a plain input, but it takes the same {{variables}},
+			// so it gets a picker too.
+			var datasetvars = document.getElementById("id_datasetvars");
+			if (datasetvars && vargroups.length) {
+				var dvtoolbar = $("<div>", {
 					class: "genericotwo-codemirror-toolbar",
-				}).insertBefore(container);
+				}).insertBefore(datasetvars);
+				Variables.attach(dvtoolbar[0], vargroups, { field: datasetvars }, false);
+			}
+
+			function addAIHelperButton(container, allViews) {
+				var toolbar = fetchToolbar(container);
 
 				var button = document.createElement("button");
 				button.className =

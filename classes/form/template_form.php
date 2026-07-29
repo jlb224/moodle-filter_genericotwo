@@ -106,21 +106,34 @@ class template_form extends moodleform {
         $mform->addElement('text', 'version', get_string('template_version', constants::M_COMPONENT), ['size' => 64]);
         $mform->setType('version', PARAM_TEXT);
         $mform->addRule('version', null, 'required', null, 'client');
+        $mform->addHelpButton('version', 'template_version', 'filter_genericotwo');
 
         $mform->addElement('text', 'templatekey', get_string('template_templatekey', constants::M_COMPONENT), ['size' => 64]);
         $mform->setType('templatekey', PARAM_TEXT);
         $mform->addRule('templatekey', null, 'required', null, 'client');
+        $mform->addHelpButton('templatekey', 'template_templatekey', 'filter_genericotwo');
 
         $mform->addElement('text', 'name', get_string('template_name', constants::M_COMPONENT), ['size' => 64]);
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
+        $mform->addHelpButton('name', 'template_name', 'filter_genericotwo');
 
         $mform->addElement('editor', 'instructions', get_string('template_instructions', constants::M_COMPONENT), ['rows' => 10]);
         $mform->setType('instructions', PARAM_RAW);
+        $mform->addHelpButton('instructions', 'template_instructions', 'filter_genericotwo');
+
+        // The variable catalogue for the insert-variable picker. It is far too big to pass as a
+        // js_call_amd argument, so it rides along in a hidden field like the preset data does.
+        $mform->addElement('html', \html_writer::empty_tag('input', [
+            'id' => 'id_filter_genericotwo_variabledata',
+            'type' => 'hidden',
+            'value' => json_encode(\filter_genericotwo\variables::fetch_catalogue()),
+        ]));
 
         $mform->addElement('textarea', 'content', get_string('template_content', constants::M_COMPONENT), ['rows' => 4]);
         $mform->setType('content', PARAM_RAW);
         $mform->addRule('content', null, 'required', null, 'client');
+        $mform->addHelpButton('content', 'template_content', 'filter_genericotwo');
 
         $mform->addElement('textarea', 'templateend', get_string('template_templateend', constants::M_COMPONENT), ['rows' => 4]);
         $mform->setType('templateend', PARAM_RAW);
@@ -141,9 +154,11 @@ class template_form extends moodleform {
         // $mform->setExpanded('hdr_css');
         $mform->addElement('text', 'importcss', get_string('template_importcss', constants::M_COMPONENT), ['size' => 64]);
         $mform->setType('importcss', PARAM_TEXT);
+        $mform->addHelpButton('importcss', 'template_importcss', 'filter_genericotwo');
 
         $mform->addElement('textarea', 'customcss', get_string('template_customcss', constants::M_COMPONENT), ['rows' => 4]);
         $mform->setType('customcss', PARAM_TEXT);
+        $mform->addHelpButton('customcss', 'template_customcss', 'filter_genericotwo');
 
         // Dataset.
         $mform->addElement('header', 'hdr_dataset', get_string('template_datasetsettings', constants::M_COMPONENT));
@@ -154,6 +169,7 @@ class template_form extends moodleform {
 
         $mform->addElement('text', 'datasetvars', get_string('template_datasetvars', constants::M_COMPONENT), ['size' => 64]);
         $mform->setType('datasetvars', PARAM_RAW);
+        $mform->addHelpButton('datasetvars', 'template_datasetvars', 'filter_genericotwo');
 
         // Preview settings.
         $mform->addElement('header', 'hdr_preview', get_string('preview', constants::M_COMPONENT));
@@ -207,6 +223,7 @@ class template_form extends moodleform {
 
         $mform->addElement('text', 'allowedcontextids', get_string('template_allowedcontextids', constants::M_COMPONENT), ['size' => 64]);
         $mform->setType('allowedcontextids', PARAM_TEXT);
+        $mform->addHelpButton('allowedcontextids', 'template_allowedcontextids', 'filter_genericotwo');
 
         $this->add_action_buttons();
     }

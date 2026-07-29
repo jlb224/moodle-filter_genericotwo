@@ -41,5 +41,58 @@ body.filter-genericotwo-pagewidth .main-inner .d-flex > .form-control {
 .genericotwo-codemirror-toolbar {
     display: flex;
     justify-content: flex-end;
+    gap: 0.25rem;
     margin-bottom: 0.25rem;
+}
+
+/* The insert-variable picker. The menu is toggled by our own JS rather than Bootstrap's
+   dropdown, so that it needs no Popper positioning and we can control its scrolling. */
+.filter_genericotwo_varpicker {
+    position: relative;
+    /* The picker is added once its strings resolve, so pin it first in the toolbar rather
+       than relying on the order the buttons happen to be appended in. */
+    order: -1;
+}
+
+.filter_genericotwo_varmenu {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    top: 100%;
+    right: 0;
+    width: 22rem;
+    max-width: 90vw;
+    padding: 0.5rem 0;
+    background-color: var(--bs-body-bg, #fff);
+    border: var(--bs-border-width) solid var(--bs-border-color, #dee2e6);
+    border-radius: var(--bs-border-radius);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    text-align: left;
+}
+
+.filter_genericotwo_varmenu.show {
+    display: block;
+}
+
+.filter_genericotwo_varsearch {
+    padding: 0 0.75rem 0.5rem;
+}
+
+.filter_genericotwo_varlist {
+    max-height: 20rem;
+    overflow-y: auto;
+}
+
+.filter_genericotwo_varitem {
+    white-space: normal;
+}
+
+.filter_genericotwo_varitem_label {
+    font-family: ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+
+.filter_genericotwo_varnote {
+    padding: 0.5rem 0.75rem 0;
+    border-top: var(--bs-border-width) solid var(--bs-border-color, #dee2e6);
+    margin-top: 0.25rem;
 }

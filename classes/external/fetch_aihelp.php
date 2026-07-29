@@ -315,6 +315,13 @@ class fetch_aihelp extends external_api {
         $promptbits[] = "You developing a front end widget using Moodle's Generic Two widget authoring system.";
         $promptbits[] = "The widget edit page contains 5 code editing areas.";
         $promptbits[] = "For HTML and JS code, Generico Two uses parameter placeholders of the format \{\{{parametername}\}\}. \n For SQL dataset parameters use ? placeholders.";
+        $vars = 'The following variables are resolved at runtime and are the ONLY built in variables available. ';
+        $vars .= 'Do not invent others. Any other {{name}} placeholder must be declared by the widget author in the ';
+        $vars .= 'variable defaults field, and is then supplied in the filter tag at runtime.' . PHP_EOL;
+        $vars .= \filter_genericotwo\variables::fetch_prompt_summary() . PHP_EOL;
+        $vars .= 'Mustache HTML-escapes {{name}}, so inside JavaScript string literals use the ';
+        $vars .= 'unescaped form {{{name}}} instead.';
+        $promptbits[] = $vars;
         $promptbits[] = "The five coding areas are:";
         $promptbits[] = "'id_content'. This is the main content area, which contains html and mustache. (field label: Body)";
         $tend = "'id_templateend'. This is an optional content area which also contains html and mustache. It is used when the user at runtime may place content between this code and the code from id_content. ";

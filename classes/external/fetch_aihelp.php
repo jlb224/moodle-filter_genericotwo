@@ -76,7 +76,7 @@ class fetch_aihelp extends external_api {
         */
 
         // Build the full prompt
-        $thefullprompt = self::fetch_full_prompt($prompt, $currentcode);
+        $thefullprompt = self::fetch_full_prompt($params['prompt'], $params['currentcode']);
 
         global $USER;
         $action = new \core_ai\aiactions\generate_text(
@@ -103,20 +103,27 @@ class fetch_aihelp extends external_api {
 
         $generatedcontent = $responsedata['generatedcontent'];
 
-        // Extract JSON in case the AI wraps it in backticks
-        $jsonstart = strpos($generatedcontent, '{');
-        $jsonend = strrpos($generatedcontent, '}');
-        if ($jsonstart !== false && $jsonend !== false) {
-            $generatedcontent = substr($generatedcontent, $jsonstart, $jsonend - $jsonstart + 1);
-        }
+        $airesponse = self::decode_ai_json($generatedcontent);
 
-        $airesponse = json_decode($generatedcontent);
-
-        if (empty($airesponse) || !isset($airesponse->editors)) {
+        if ($airesponse === null) {
+            // The most common cause of unparseable output is the model hitting its output token
+            // limit part way through the JSON, so report that case specifically.
+            $finishreason = strtolower((string)($responsedata['finishreason'] ?? ''));
+            if (in_array($finishreason, ['length', 'max_tokens', 'maxtokens'], true)) {
+                return [
+                    'status' => false,
+                    'response' => '',
+                    'message' => get_string('airesponsetruncated', 'filter_genericotwo'),
+                ];
+            }
             return [
                 'status' => false,
                 'response' => '',
-                'message' => get_string('jsonparsefail', 'filter_genericotwo'),
+                'message' => get_string('jsonparsefail', 'filter_genericotwo') . ' ' .
+                    get_string('jsonparsefaildetail', 'filter_genericotwo', (object)[
+                        'error' => json_last_error_msg(),
+                        'snippet' => shorten_text(trim($generatedcontent), 300),
+                    ]),
             ];
         }
 
@@ -136,9 +143,169 @@ class fetch_aihelp extends external_api {
         return new external_single_structure([
             'status' => new external_value(PARAM_BOOL, 'True if successful'),
             'response' => new external_value(PARAM_RAW, 'JSON string containing new contents for editors'),
-            'message' => new external_value(PARAM_TEXT, 'Error or success message', VALUE_OPTIONAL),
+            'message' => new external_value(PARAM_RAW, 'Error or success message', VALUE_OPTIONAL),
             'provider' => new external_value(PARAM_TEXT, 'The AI provider used', VALUE_OPTIONAL),
         ]);
+    }
+
+    /**
+     * Decode the JSON object out of the raw AI output.
+     *
+     * Models routinely wrap the JSON in markdown fences or in explanatory prose, and often emit
+     * raw newlines inside JSON strings when the string values are multi-line code, so a plain
+     * json_decode() of the whole payload is not reliable.
+     *
+     * @param string $content The raw generated content.
+     * @return \stdClass|null The decoded object, or null if nothing usable could be parsed.
+     */
+    private static function decode_ai_json($content) {
+        $content = trim((string)$content);
+
+        // Prefer the contents of a fenced code block if there is one.
+        if (preg_match('/```(?:json)?\s*(.*?)```/s', $content, $matches)) {
+            $content = trim($matches[1]);
+        }
+
+        // Try the whole payload first, then each balanced {...} object found within it. The first
+        // brace is not always the start of the JSON (prose may mention {{AUTOID}} for example).
+        if (($decoded = self::try_decode($content)) !== null) {
+            return $decoded;
+        }
+
+        $offset = 0;
+        $attempts = 0;
+        while ($attempts < 10 && ($pos = strpos($content, '{', $offset)) !== false) {
+            $attempts++;
+            $offset = $pos + 1;
+            $chunk = self::extract_balanced_object($content, $pos);
+            if ($chunk === null) {
+                continue;
+            }
+            if (($decoded = self::try_decode($chunk)) !== null) {
+                return $decoded;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Attempt to decode a candidate JSON string into the expected response object.
+     *
+     * @param string $candidate The candidate JSON.
+     * @return \stdClass|null The decoded object, or null if it is not valid or not the shape we want.
+     */
+    private static function try_decode($candidate) {
+        foreach ([$candidate, self::escape_control_chars_in_strings($candidate)] as $attempt) {
+            $decoded = json_decode($attempt);
+            if ($decoded instanceof \stdClass && isset($decoded->editors)) {
+                return $decoded;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Return the balanced {...} substring starting at the given offset, ignoring braces that
+     * appear inside JSON string literals.
+     *
+     * @param string $content The string to scan.
+     * @param int $start Offset of the opening brace.
+     * @return string|null The balanced substring, or null if the braces never balance.
+     */
+    private static function extract_balanced_object($content, $start) {
+        $depth = 0;
+        $instring = false;
+        $escaped = false;
+        $len = strlen($content);
+
+        for ($i = $start; $i < $len; $i++) {
+            $char = $content[$i];
+
+            if ($instring) {
+                if ($escaped) {
+                    $escaped = false;
+                } else if ($char === '\\') {
+                    $escaped = true;
+                } else if ($char === '"') {
+                    $instring = false;
+                }
+                continue;
+            }
+
+            if ($char === '"') {
+                $instring = true;
+            } else if ($char === '{') {
+                $depth++;
+            } else if ($char === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($content, $start, $i - $start + 1);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Escape raw control characters that appear inside JSON string literals.
+     *
+     * Models frequently emit literal newlines and tabs inside JSON strings when those strings hold
+     * multi-line code, which is invalid JSON. This repairs that without touching anything else.
+     *
+     * @param string $json The candidate JSON.
+     * @return string The repaired JSON.
+     */
+    private static function escape_control_chars_in_strings($json) {
+        $out = '';
+        $instring = false;
+        $escaped = false;
+        $len = strlen($json);
+
+        for ($i = 0; $i < $len; $i++) {
+            $char = $json[$i];
+
+            if (!$instring) {
+                if ($char === '"') {
+                    $instring = true;
+                }
+                $out .= $char;
+                continue;
+            }
+
+            if ($escaped) {
+                $out .= $char;
+                $escaped = false;
+                continue;
+            }
+
+            if ($char === '\\') {
+                $out .= $char;
+                $escaped = true;
+                continue;
+            }
+
+            if ($char === '"') {
+                $instring = false;
+                $out .= $char;
+                continue;
+            }
+
+            if ($char === "\n") {
+                $out .= '\\n';
+            } else if ($char === "\r") {
+                $out .= '\\r';
+            } else if ($char === "\t") {
+                $out .= '\\t';
+            } else if (ord($char) < 0x20) {
+                $out .= sprintf('\\u%04x', ord($char));
+            } else {
+                $out .= $char;
+            }
+        }
+
+        return $out;
     }
 
     private static function fetch_full_prompt($prompt, $currentcode) {
@@ -153,20 +320,29 @@ class fetch_aihelp extends external_api {
         $tend = "'id_templateend'. This is an optional content area which also contains html and mustache. It is used when the user at runtime may place content between this code and the code from id_content. ";
         $tend .= "e.g for an audio player widget, the user may place a media link between the id_content code and the id_templateend code at runtime. (field label: Template End)";
         $promptbits[] = $tend;
-        $examplejs = "require(['jquery','core/log'],
-                function($, log) {
-                    $('#{{AUTOID}}_greetingbox').text('hello');
-                }
-            );";
+        $examplejs = "require(['core/log'],
+    function(log) {
+        document.getElementById('{{AUTOID}}_greetingbox').textContent = 'hello';
+    }
+);";
         $promptbits[] = "'id_jscontent'. This contains javascript, probably but not always, the definition of an AMD module. It will usually perform some action on the html/mustache content. (field label: JS Content). An example script is: " . PHP_EOL . $examplejs;
         $promptbits[] = "'id_dataset'. This contains SQL that may have ?parameters that will be replaced by user input values at runtime. (field label: Dataset Body)";
-        $promptbits[] = "'id_customcss'. This is the custom css area. CSS declared is injected onto the page at runtime during page load. (field label: Custom CSS)";
+        $promptbits[] = "'id_customcss'. This is the custom css area. CSS declared is injected onto the page at runtime during page load. Generico mustache and js variables are not available in the custom css area. So do not use them in custom css. (field label: Custom CSS)";
         $promptbits[] = "The current editor content is:" . PHP_EOL . $currentcode;
         $promptbits[] = "You should follow the instructions below to add/edit editor content.";
-        $promptbits[] = "Return a similarly structured JSON object to the current editor content, but with the suggested replacement contents for each of the editors, but only edit content that needs to be changed.";
-        $promptbits[] = "Also return a text description of the changes you have made to the content.";
-        $promptbits[] = "Your response should be a JSON object with two keys: 'editors' (the editor contents as a JSON object with the same keys as the current editor content) and 'description' (a text description of the changes you have made to the content).";
-        $promptbits[] = "Your instructions for this task are:". PHP_EOL . $prompt;
+        $shape = "Your response should be a JSON object with two keys: 'editors' (an object keyed by editor id, holding the ";
+        $shape .= "complete replacement content for that editor) and 'description' (a short text description of the changes you made).";
+        $promptbits[] = $shape;
+        $onlychanged = "IMPORTANT: only include an editor in the 'editors' object if its content actually needs to change. ";
+        $onlychanged .= "Omit every editor you are leaving untouched entirely - do not echo back unchanged content. ";
+        $onlychanged .= "This keeps your response short enough that it will not be truncated.";
+        $promptbits[] = $onlychanged;
+        $rawjson = "IMPORTANT: return raw JSON only, with no markdown code fences and no text outside the JSON object. ";
+        $rawjson .= "All newlines, tabs and quotes inside the editor content strings must be properly escaped ";
+        $rawjson .= "(\\n, \\t, \\\") so that the response is valid JSON.";
+        $promptbits[] = $rawjson;
+        $promptbits[] = "Keep the 'description' brief - a few sentences at most.";
+        $promptbits[] = "Your instructions for this task are:" . PHP_EOL . $prompt;
         return implode(PHP_EOL, $promptbits);
     }
 

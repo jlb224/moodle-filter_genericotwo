@@ -28,3 +28,18 @@ body.filter-genericotwo-pagewidth.limitedwidth .main-inner {
 body.filter-genericotwo-pagewidth .main-inner .d-flex > .form-control {
     width: 100%;
 }
+
+/* The AI response is prose, so wrap it rather than scrolling it sideways on one line. */
+#filter_genericotwo_aihelper_response {
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.genericotwo-codemirror-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.25rem;
+}

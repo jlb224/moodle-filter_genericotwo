@@ -34,7 +34,6 @@ define([
 
 					container.css({
 						width: "100%",
-						position: "relative", // Added for button positioning.
 					});
 
 					textarea.hide();
@@ -45,7 +44,11 @@ define([
 					var theme = EditorView.theme({
 						"&": { width: "100%", minHeight: height },
 						".cm-scroller": { overflow: "auto", minHeight: height },
-						".cm-content": { minHeight: height },
+						".cm-content": {
+							minHeight: height,
+							fontFamily:
+								"ui-monospace, Menlo, Consolas, 'DejaVu Sans Mono', monospace",
+						},
 						".cm-gutters": { minHeight: height },
 					});
 
@@ -92,23 +95,25 @@ define([
 					});
 
 					if (config && config.enableaihelper && item.id === "id_content") {
-						addAIHelperButton(container[0], views);
+						addAIHelperButton(container, views);
 					}
 				}
 			});
 
 			function addAIHelperButton(container, allViews) {
+				// In-flow toolbar above the editor, so the button can never
+				// overlap whatever field happens to precede this one.
+				var toolbar = $("<div>", {
+					class: "genericotwo-codemirror-toolbar",
+				}).insertBefore(container);
+
 				var button = document.createElement("button");
 				button.className =
 					"btn btn-secondary btn-sm filter_genericotwo_aihelper_btn";
 				button.innerHTML = '<i class="fa fa-magic"></i> AI Wizard';
 				button.title = "AI Helper";
-				button.style.position = "absolute";
-				button.style.top = "-35px";
-				button.style.right = "0";
-				button.style.zIndex = "10";
 
-				container.appendChild(button);
+				toolbar.append(button);
 
 				button.addEventListener("click", function (e) {
 					e.preventDefault();
